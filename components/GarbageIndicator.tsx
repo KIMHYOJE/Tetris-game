@@ -1,0 +1,1 @@
+export function GarbageIndicator({ lines }: { lines: number }) { return <div aria-label={`${lines} garbage lines`} className="flex gap-1">{Array.from({ length: Math.max(0, lines) }, (_, index) => <span className="h-3 w-2 rounded-sm bg-red-400" key={index} />)}</div>; }

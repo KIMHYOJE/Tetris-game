@@ -1,0 +1,14 @@
+import { cells, rotate } from "./srs";
+import { HEIGHT, WIDTH, shuffledBag } from "./pieces";
+import type { ActivePiece, Board, GameState, PieceType } from "./types";
+export const emptyBoard = (): Board => Array.from({ length: HEIGHT }, () => Array<PieceType | null>(WIDTH).fill(null));
+export const spawn = (type: PieceType): ActivePiece => ({ type, rotation: 0, x: 3, y: 0 });
+export function collides(board: Board, piece: ActivePiece): boolean { return cells(piece).some(([x,y]) => x < 0 || x >= WIDTH || y >= HEIGHT || (y >= 0 && board[y][x] !== null)); }
+export function merge(board: Board, piece: ActivePiece): Board { const next = board.map(row => [...row]); for (const [x,y] of cells(piece)) if (y >= 0) next[y][x] = piece.type; return next; }
+export function clearLines(board: Board): { board: Board; count: number } { const kept = board.filter(row => row.some(cell => cell === null)); const count = HEIGHT - kept.length; return { board: [...Array.from({ length: count }, () => Array<PieceType | null>(WIDTH).fill(null)), ...kept], count }; }
+export function initialState(random = Math.random): GameState { const next = [...shuffledBag(random), ...shuffledBag(random)]; const active = spawn(next.shift()!); return { board: emptyBoard(), active, next, hold: null, canHold: true, score: 0, lines: 0, level: 1, combo: -1, gameOver: collides(emptyBoard(), active) }; }
+export function move(state: GameState, dx: number, dy: number): GameState { const candidate = { ...state.active, x: state.active.x + dx, y: state.active.y + dy }; return collides(state.board, candidate) ? state : { ...state, active: candidate }; }
+export function rotatePiece(state: GameState, direction: 1|-1): GameState { const candidate = rotate(state.active, direction).find(p => !collides(state.board,p)); return candidate ? { ...state, active: candidate } : state; }
+export function lock(state: GameState, random = Math.random): GameState { const merged = merge(state.board,state.active); const cleared = clearLines(merged); const count = cleared.count; const level = Math.floor((state.lines + count) / 10) + 1; const scoring = [0,100,300,500,800][count] * level; const next = [...state.next]; if (next.length < 7) next.push(...shuffledBag(random)); const active = spawn(next.shift()!); return { ...state, board: cleared.board, active, next, score: state.score + scoring + (state.combo >= 0 && count > 0 ? 50 * state.combo * level : 0), lines: state.lines + count, level, combo: count ? state.combo + 1 : -1, canHold: true, gameOver: collides(cleared.board, active) }; }
+export function hardDrop(state: GameState, random = Math.random): GameState { let current = state; while (current.active.y !== move(current,0,1).active.y) current = move(current,0,1); return lock(current,random); }
+export function gravityMs(level: number): number { return Math.max(70, 800 - (level - 1) * 65); }
